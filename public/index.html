@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SVG to PDF Converter</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .dropzone { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; cursor: pointer; }
+        .dropzone:hover { border-color: #999; }
+        .dropzone.dragover { border-color: #333; background: #f9f9f9; }
+        button { padding: 10px 20px; background: #007cba; color: white; border: none; cursor: pointer; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status { margin: 10px 0; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>SVG to PDF Converter</h1>
+    
+    <div id="dropzone" class="dropzone">
+        <p>Drop SVG file here or click to select</p>
+        <input type="file" id="fileInput" accept=".svg" style="display: none;">
+    </div>
+    
+    <div id="fileInfo" style="display: none;">
+        <p>Selected: <span id="fileName"></span></p>
+        <button id="convertBtn">Convert to PDF</button>
+    </div>
+    
+    <div id="status"></div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const convertBtn = document.getElementById('convertBtn');
+        const status = document.getElementById('status');
+        
+        let selectedFile = null;
+
+        // Click to select file
+        dropzone.addEventListener('click', () => fileInput.click());
+        
+        // Drag and drop
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+        
+        // Handle file selection
+        function handleFile(file) {
+            if (file && file.type === 'image/svg+xml') {
+                selectedFile = file;
+                fileName.textContent = file.name;
+                fileInfo.style.display = 'block';
+                status.textContent = '';
+            } else {
+                alert('Please select a valid SVG file');
+            }
+        }
+        
+        // Convert file
+        convertBtn.addEventListener('click', () => {
+            if (!selectedFile) return;
+            
+            const formData = new FormData();
+            formData.append('svg', selectedFile);
+            
+            convertBtn.disabled = true;
+            status.textContent = 'Converting...';
+            
+            fetch('/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+                throw new Error('Conversion failed');
+            })
+            .then(blob => {
+                // Download the PDF
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = selectedFile.name.replace('.svg', '.pdf');
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                status.textContent = 'Conversion complete!';
+                convertBtn.disabled = false;
+            })
+            .catch(error => {
+                status.textContent = 'Error: ' + error.message;
+                convertBtn.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
