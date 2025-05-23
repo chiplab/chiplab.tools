@@ -3,3 +3,4 @@ node_modules/
 temp/
 node_modules/
 .env
+fonts/type.xml

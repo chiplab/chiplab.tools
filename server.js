@@ -111,7 +111,8 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
             '/usr/local/bin/inkscape',              // Homebrew on Intel Mac
             '/opt/homebrew/bin/inkscape',           // Homebrew on Apple Silicon Mac
             '/Applications/Inkscape.app/Contents/MacOS/inkscape', // macOS app
-            'C:\\Program Files\\Inkscape\\bin\\inkscape.exe'  // Windows
+            'C:\\Program Files\\Inkscape\\bin\\inkscape.exe',  // Windows
+            'flatpak run org.inkscape.Inkscape'    // Flatpak on Linux
         ];
         
         // Find the first existing Inkscape path
