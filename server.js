@@ -138,7 +138,13 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
         if (!inkscapePath) {
             // Try using PATH environment
             try {
-                inkscapePath = exec('which inkscape', { encoding: 'utf8' }).toString().trim();
+                const whichResult = exec('which inkscape', { encoding: 'utf8' }).toString().trim();
+                if (whichResult && whichResult.includes('flatpak')) {
+                    // If which returns flatpak path, use the flatpak command
+                    inkscapePath = 'flatpak run org.inkscape.Inkscape';
+                } else if (whichResult) {
+                    inkscapePath = whichResult;
+                }
             } catch (e) {
                 console.error('Inkscape not found on system');
                 return res.status(500).json({ error: 'Inkscape is required but not installed on this system' });
@@ -194,7 +200,12 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
         console.log(`Inkscape command: ${inkscapePath} ${inkscapeOptions.join(' ')}`);
         
         console.log('Starting PDF conversion with Inkscape...');
-        execFile(inkscapePath, inkscapeOptions, { env }, (error, stdout, stderr) => {
+        
+        // Handle flatpak command differently than regular executables
+        if (inkscapePath.startsWith('flatpak')) {
+            // For flatpak, we need to use exec instead of execFile and combine command + args
+            const fullCommand = `${inkscapePath} ${inkscapeOptions.join(' ')}`;
+            exec(fullCommand, { env }, (error, stdout, stderr) => {
             if (stderr) {
                 console.log('Inkscape stderr:', stderr);
             }
@@ -233,7 +244,50 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
                 // Clean up files after download
                 cleanup(inputSvgPath, outputPath);
             });
-        });
+            });
+        } else {
+            // For regular executables, use execFile
+            execFile(inkscapePath, inkscapeOptions, { env }, (error, stdout, stderr) => {
+                if (stderr) {
+                    console.log('Inkscape stderr:', stderr);
+                }
+                if (stdout) {
+                    console.log('Inkscape stdout:', stdout);
+                }
+                
+                if (error) {
+                    console.error('\n=== CONVERSION ERROR ===');
+                    console.error('Inkscape conversion failed:', error.message);
+                    console.error('Command:', inkscapePath, inkscapeOptions.join(' '));
+                    if (error.code) console.error('Exit code:', error.code);
+                    if (error.signal) console.error('Signal:', error.signal);
+                    console.error('=======================\n');
+                    
+                    cleanup(inputSvgPath, outputPath);
+                    return res.status(500).json({ 
+                        error: 'PDF conversion failed', 
+                        details: error.message,
+                        fontIssues: fontResults.fontsFailed.length > 0 ? 
+                            `Missing fonts: ${fontResults.fontsFailed.join(', ')}` : null
+                    });
+                }
+                
+                console.log('✅ PDF conversion completed successfully');
+                console.log(`📄 Generated: ${outputPath}`);
+                
+                // Send the PDF file
+                res.download(outputPath, req.file.originalname.replace('.svg', '.pdf'), (err) => {
+                    if (err) {
+                        console.error('PDF download error:', err);
+                    } else {
+                        console.log('📤 PDF download started');
+                    }
+                    
+                    // Clean up files after download
+                    cleanup(inputSvgPath, outputPath);
+                });
+            });
+        }
     } catch (error) {
         console.error('Error processing SVG:', error);
         cleanup(inputSvgPath, outputPath);
