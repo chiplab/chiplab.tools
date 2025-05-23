@@ -7,7 +7,7 @@ try {
 
 const express = require('express');
 const multer = require('multer');
-const { execFile, exec } = require('child_process');
+const { execFile, exec, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const fontManager = require('./font-manager');
@@ -122,7 +122,7 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
                 // For flatpak, check if flatpak command exists and Inkscape is installed
                 try {
                     if (fs.existsSync('/usr/bin/flatpak')) {
-                        exec('flatpak list | grep org.inkscape.Inkscape', { encoding: 'utf8' });
+                        execSync('flatpak list | grep org.inkscape.Inkscape', { encoding: 'utf8' });
                         inkscapePath = pathToCheck;
                         break;
                     }
@@ -138,7 +138,7 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
         if (!inkscapePath) {
             // Try using PATH environment
             try {
-                const whichResult = exec('which inkscape', { encoding: 'utf8' }).toString().trim();
+                const whichResult = execSync('which inkscape', { encoding: 'utf8' }).toString().trim();
                 if (whichResult && whichResult.includes('flatpak')) {
                     // If which returns flatpak path, use the flatpak command
                     inkscapePath = 'flatpak run org.inkscape.Inkscape';
@@ -156,7 +156,7 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
         // Check Inkscape version to determine correct parameters
         let inkscapeVersion = "1.0"; // Default to 1.0+ to use new parameters
         try {
-            const versionOutput = exec(`${inkscapePath} --version`, { encoding: 'utf8' }).toString().trim();
+            const versionOutput = execSync(`${inkscapePath} --version`, { encoding: 'utf8' }).toString().trim();
             console.log(`Inkscape version output: ${versionOutput}`);
             
             // Extract version number from output
