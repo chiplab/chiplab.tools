@@ -118,7 +118,18 @@ app.post('/convert', upload.single('svg'), async (req, res) => {
         // Find the first existing Inkscape path
         let inkscapePath = null;
         for (const pathToCheck of inkscapePaths) {
-            if (fs.existsSync(pathToCheck)) {
+            if (pathToCheck.startsWith('flatpak')) {
+                // For flatpak, check if flatpak command exists and Inkscape is installed
+                try {
+                    if (fs.existsSync('/usr/bin/flatpak')) {
+                        exec('flatpak list | grep org.inkscape.Inkscape', { encoding: 'utf8' });
+                        inkscapePath = pathToCheck;
+                        break;
+                    }
+                } catch (e) {
+                    // Flatpak or Inkscape not available, continue checking
+                }
+            } else if (fs.existsSync(pathToCheck)) {
                 inkscapePath = pathToCheck;
                 break;
             }
